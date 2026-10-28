@@ -235,6 +235,31 @@ if (-not (Test-Path "$rpcBase/win64-static/lib/discord-rpc.lib")) {
     # live in the thirdparty/rapidjson submodule.
     git clone --depth 1 --branch v3.4.0 --recursive https://github.com/discord/discord-rpc.git $src
     if ($LASTEXITCODE -ne 0) { throw 'failed to clone discord/discord-rpc' }
+    # discord-rpc v3.4.0's .clang-format has a duplicated top-level key; every
+    # clang-format >= 15 (including the one bundled with VS on this image,
+    # which their CMake unconditionally wires into the default build through
+    # a "clangformat" custom target when it finds clang-format) rejects the
+    # file with "duplicated mapping key 'IndentCaseLabels'" and MSBuild fails
+    # the whole build. Deduplicate top-level keys so the target can run.
+    $fmtFile = Join-Path $src '.clang-format'
+    if (Test-Path $fmtFile) {
+        $seen = @{}
+        $kept = foreach ($line in (Get-Content $fmtFile)) {
+            $m = [regex]::Match($line, '^(?<key>[A-Za-z][\w-]*)\s*:')
+            if ($m.Success -and $m.Groups['key'].Value -ne 'Language') {
+                # Language intentionally repeats (multi-document section marker)
+                $key = $m.Groups['key'].Value
+                if ($seen.ContainsKey($key)) {
+                    Write-Host "dropping duplicated .clang-format key: $key"
+                    continue
+                }
+                $seen[$key] = $true
+            }
+            $line
+        }
+        [IO.File]::WriteAllLines($fmtFile, @($kept))  # UTF-8, no BOM
+        Write-Host ".clang-format sanitized"
+    }
     foreach ($spec in @(
         @{ Dir = 'win64-static'; Arch = 'x64' },
         @{ Dir = 'win32-static'; Arch = 'Win32' }
@@ -255,7 +280,7 @@ if (-not (Test-Path "$rpcBase/win64-static/lib/discord-rpc.lib")) {
             '-A', $spec.Arch,
             '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
             '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded',
-            '-DDISCORD_BUILD_EXAMPLES=OFF'
+            '-DBUILD_EXAMPLES=OFF'
         )
         & cmake @cmakeArgs
         if ($LASTEXITCODE -ne 0) { throw "discord-rpc configure failed ($($spec.Arch))" }
