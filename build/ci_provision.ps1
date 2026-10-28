@@ -154,18 +154,23 @@ function Provision-WebViewX86FromApi([string]$targetDir) {
         )
         $cabUrl = $null
         foreach ($ep in $endpoints) {
-            try {
-                Write-Host "Querying $ep"
-                $json = (Invoke-WebRequest -Uri $ep -TimeoutSec 120 -ErrorAction Stop).Content
-                $links = [regex]::Matches([string]$json, 'https://[^\s"\\<>]+?\.cab') |
-                         ForEach-Object { $_.Value } | Select-Object -Unique
-                if ($links) {
-                    # The x86 package name carries the arch tag; prefer it.
-                    $cabUrl = ($links | Where-Object { $_ -match '(?i)x86' } | Select-Object -First 1)
-                    if (-not $cabUrl) { $cabUrl = $links | Select-Object -First 1 }
+            # The runner occasionally loses DNS for this host briefly; retry.
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+                try {
+                    Write-Host "Querying $ep (attempt $attempt)"
+                    $json = (Invoke-WebRequest -Uri $ep -TimeoutSec 90 -ErrorAction Stop).Content
+                    $links = [regex]::Matches([string]$json, 'https://[^\s"\\<>]+?\.cab') |
+                             ForEach-Object { $_.Value } | Select-Object -Unique
+                    if ($links) {
+                        # The x86 package name carries the arch tag; prefer it.
+                        $cabUrl = ($links | Where-Object { $_ -match '(?i)x86' } | Select-Object -First 1)
+                        if (-not $cabUrl) { $cabUrl = $links | Select-Object -First 1 }
+                    }
+                } catch {
+                    Write-Host "metadata query failed: $($_.Exception.Message)"
+                    Start-Sleep -Seconds 5
                 }
-            } catch {
-                Write-Host "metadata query failed: $($_.Exception.Message)"
+                if ($cabUrl) { break }
             }
             if ($cabUrl) { break }
         }
@@ -239,9 +244,20 @@ if (-not (Test-Path "$rpcBase/win64-static/lib/discord-rpc.lib")) {
         # runner image ships (generator numbering changes between images);
         # -A still selects the architecture. CMAKE_POLICY_VERSION_MINIMUM
         # keeps CMake 4+ from hard-refusing this pre-3.5 project.
-        cmake -S $src -B $cfg -A $spec.Arch `
-              -DCMAKE_POLICY_VERSION_MINIMUM=3.5 `
-              -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DDISCORD_BUILD_EXAMPLES=OFF
+        #
+        # Every -D argument goes through a splatted array of single-quoted
+        # strings: raw backtick continuation parsed "-D...=3.5" into "-D...=3"
+        # plus a stray ".5" positional path on the runner (Observed on the
+        # windows-2025-vs2026 image with pwsh 7), which CMake rejected.
+        $cmakeArgs = @(
+            '-S', $src,
+            '-B', $cfg,
+            '-A', $spec.Arch,
+            '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
+            '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded',
+            '-DDISCORD_BUILD_EXAMPLES=OFF'
+        )
+        & cmake @cmakeArgs
         if ($LASTEXITCODE -ne 0) { throw "discord-rpc configure failed ($($spec.Arch))" }
         cmake --build $cfg --config Release --target discord-rpc
         if ($LASTEXITCODE -ne 0) { throw "discord-rpc build failed ($($spec.Arch))" }
