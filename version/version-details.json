@@ -1,16 +1,16 @@
 {
-  "shellVersion": "5.0.30",
+  "shellVersion": "5.0.98",
   "files": {
     "windows-x64": {
-      "url": "https://github.com/anshuman852/stremio-community-v5/releases/download/5.0.0-beta.30/Stremio.5.0.30-x64.exe",
-      "checksum": "6b632d3d8871d69bffddbfc5d2bd05df2a6764c028650b0862cbb67cbe4c5dd9"
+      "url": "https://github.com/notfullmetal/stremio-community-v5-1/releases/download/5.0.0-beta.98/Stremio.5.0.98-x64.exe",
+      "checksum": "166f9989ff03a329b508aaf03e1ab8c60a6d4d0672fd7a883507c8e69ea43de1"
     },
     "windows-x86": {
-      "url": "https://github.com/anshuman852/stremio-community-v5/releases/download/5.0.0-beta.30/Stremio.5.0.30-x86.exe",
-      "checksum": "d7228894faa40e8418577b18f06578b6170037de1d7040bd09b4055fe2e534bf"
+      "url": "https://github.com/notfullmetal/stremio-community-v5-1/releases/download/5.0.0-beta.98/Stremio.5.0.98-x86.exe",
+      "checksum": "2354e991c4e183c98c7bb15a78a37269b25b711d66e558ccd08338b77b7961e0"
     },
     "server.js": {
-      "url": "https://dl.strem.io/server/4.20.15/desktop/server.js",
+      "url": "https://dl.strem.io/server/v4.20.15/desktop/server.js",
       "checksum": "678332fecb0f2b22a7b65e3013afee065b43f8cf62c81bd3693b4d7ae664628d"
     }
   }
