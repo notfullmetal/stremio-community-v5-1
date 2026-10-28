@@ -279,6 +279,11 @@ if (-not (Test-Path "$rpcBase/win64-static/lib/discord-rpc.lib")) {
             '-B', $cfg,
             '-A', $spec.Arch,
             '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
+            # Their cmake_minimum_required(3.2) leaves CMP0091 OLD, which
+            # ignores CMAKE_MSVC_RUNTIME_LIBRARY and compiles /MD, breaking
+            # our /MT app at link time (LNK2038 RuntimeLibrary mismatch).
+            # Force the policy NEW so the runtime variable is honored.
+            '-DCMAKE_POLICY_DEFAULT_CMP0091=NEW',
             '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded',
             '-DBUILD_EXAMPLES=OFF'
         )
