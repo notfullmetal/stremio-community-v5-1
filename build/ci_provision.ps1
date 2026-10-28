@@ -286,8 +286,12 @@ if (-not (Test-Path "$rpcBase/win64-static/lib/discord-rpc.lib")) {
         if ($LASTEXITCODE -ne 0) { throw "discord-rpc configure failed ($($spec.Arch))" }
         cmake --build $cfg --config Release --target discord-rpc
         if ($LASTEXITCODE -ne 0) { throw "discord-rpc build failed ($($spec.Arch))" }
+        # MSBuild vs2026 generators lay the target out per subdirectory
+        # ($cfg/src/Release/), older layouts used $cfg/Release/ - locate it.
+        $rpcLib = Get-ChildItem $cfg -Recurse -Filter 'discord-rpc.lib' -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $rpcLib) { throw "discord-rpc.lib was not produced ($($spec.Arch))" }
         New-Item -ItemType Directory -Force -Path "$rpcBase/$($spec.Dir)/lib" | Out-Null
-        Copy-Item "$cfg/Release/discord-rpc.lib" "$rpcBase/$($spec.Dir)/lib/discord-rpc.lib" -Force
+        Copy-Item $rpcLib.FullName "$rpcBase/$($spec.Dir)/lib/discord-rpc.lib" -Force
         New-Item -ItemType Directory -Force -Path "$rpcBase/$($spec.Dir)/include" | Out-Null
         Copy-Item "$src/include/*" "$rpcBase/$($spec.Dir)/include/" -Force -Recurse
     }
